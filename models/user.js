@@ -14,11 +14,7 @@ const userSchema = Schema(
       match: [emailRegexp, "Please enter a valid email address"],
       unique: true,
     },
-    subscription: {
-      type: String,
-      enum: ["starter", "pro", "business"],
-      default: "starter",
-    },
+
     token: {
       type: String,
       default: null,
@@ -32,6 +28,7 @@ const registerJoiSchema = Joi.object({
 });
 const schemas = {
   register: registerJoiSchema,
+  login: registerJoiSchema,
 };
 const User = model("user", userSchema);
 
