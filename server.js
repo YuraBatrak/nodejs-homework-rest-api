@@ -1,6 +1,6 @@
 const app = require("./app");
 const mongoose = require("mongoose");
-
+require("dotenv").config();
 const dbb =
   "mongodb+srv://Yura:ft6wA1PRHcZP0JLe@cluster0.7fqh3.mongodb.net/contacts_reader?retryWrites=true&w=majority";
 mongoose
