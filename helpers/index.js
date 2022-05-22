@@ -1,2 +1,3 @@
 const createError = require("./createError");
-module.exports = { createError };
+const transporter = require("./sendMail");
+module.exports = { createError, transporter };

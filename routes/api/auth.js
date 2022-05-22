@@ -4,9 +4,10 @@ const gravatar = require("gravatar");
 const jwt = require("jsonwebtoken");
 const path = require("path");
 const fs = require("fs/promises");
+const { nanoid } = require("nanoid");
 
 const { User, schemas } = require("../../models/user");
-const { createError } = require("../../helpers/");
+const { createError, sendMail } = require("../../helpers/");
 const { auth, upload } = require("../../middlewares");
 
 const router = express.Router();
@@ -25,7 +26,22 @@ router.post("/register", async (req, res, next) => {
     }
     const hashPassword = await bcrypt.hash(password, 10);
     const avatarURL = gravatar.url(email);
-    await User.create({ email, password: hashPassword, avatarURL });
+    const verificationToken = nanoid();
+    await User.create({
+      email,
+      password: hashPassword,
+      avatarURL,
+      verificationToken,
+    });
+    const mail = {
+      to: email,
+      subject: "Подтвердждение регистрации на сайте",
+      html: `<a target="_blank" 
+            href="localhost:4000/api/auth/verify/${verificationToken}">
+                Нажмите для подтверждения email
+            </a>`,
+    };
+    await sendMail(mail);
     res.status(201).json({
       user: { email },
     });
@@ -34,6 +50,54 @@ router.post("/register", async (req, res, next) => {
   }
 });
 
+router.get("/verify/:verificationToken", async (req, res, next) => {
+  try {
+    const { verificationToken } = req.params;
+    const user = await User.findOne({ verificationToken });
+    if (!user) {
+      throw createError(404);
+    }
+    await User.findByIdAndUpdate(user._id, {
+      verificationToken: null,
+      verify: true,
+    });
+    res.json({
+      message: "Verification successful",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+router.post("/verify", async (req, res, next) => {
+  try {
+    const { error } = schemas.verifyEmail.validate(req.body);
+    if (error) {
+      throw createError(400, "Email or password invalid");
+    }
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+      throw createError(401);
+    }
+    if (user.verify) {
+      throw createError(400, "Verification has already been passed");
+    }
+    const mail = {
+      to: email,
+      subject: "Подтвердждение регистрации на сайте",
+      html: `<a target="_blank" 
+            href="localhost:3000/api/auth/verify/${user.verificationToken}">
+                Нажмите для подтверждения email
+            </a>`,
+    };
+    await sendMail(mail);
+    res.json({
+      message: "Verification email sent",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 router.post("/login", async (req, res, next) => {
   const { SECRET_KEY } = process.env;
   try {
